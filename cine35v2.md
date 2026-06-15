@@ -13,7 +13,7 @@ Personal reference for the ongoing PID/rate tuning of a GEPRC Cinelog35 V2. This
 - Firmware: Betaflight 4.5.0-RC3 (Mar 18 2024 build), config rev `415237c`
 - Connects via COM4 (USB)
 
-## Current Configuration Summary (as of 2026-06-15)
+## Current Configuration Summary (as of 2026-06-16)
 
 ### PID profiles (auto-selected by battery cell count)
 
@@ -51,6 +51,7 @@ Mechanism: `adjrange 0 0 0 900 2100 12 3 0 0` — RATE_PROFILE adjustment (funct
 - `thrust_linear = 12` on PID profiles 0 and 1
 - `motor_output_limit = 98` on profile 0 (6S), `= 95` on profile 1 (4S)
 - `dyn_notch_count = 2`, `pid_process_denom = 2`
+- `vbat_sag_compensation = 100` and `anti_gravity_gain = 90` on both PID profiles 0 and 1 (added 2026-06-16, from UAV Tech Cinewhoop preset comparison — see Changelog)
 
 ## Changelog
 
@@ -71,6 +72,14 @@ Mechanism: `adjrange 0 0 0 900 2100 12 3 0 0` — RATE_PROFILE adjustment (funct
   - **Permanent fix**: set `auto_profile_cell_count = -1` on both profile 2 and profile 3 (CLI allowed range is **-1 to 8**, not just 0-8). `-1` means "exclude this profile from auto-switching entirely" — it never matches a cell count, never acts as the STAY-fallback during search, and (if somehow active) never blocks the search for a real match. Re-selected `profile 0` and saved. Verified after reboot on USB power: `profile` correctly returns `0` (was `2` before the fix), and `diff all` shows `auto_profile_cell_count = -1` on profiles 2 and 3.
   - This fix is durable regardless of how profile 2/3 become active (GUI tab navigation, USB "1S" quirk, etc.) — the *next* real battery connection will always find profile 0 or profile 1 by exact cell-count match.
 
+### 2026-06-16
+- Indoor hover test passed: 6S → profile0/"6S" + rateprofile0/"Cine", correct prop directions, good low-throttle stick response. PID auto-switch fix verified live with a real 6S battery (`profile`=0, `status`="6S battery - OK" @24.81V).
+- Erased blackbox dataflash (was 16MB/16MB full) via `flash_erase` — confirmed `usedSize=0`. Reviewed blackbox config (`blackbox_sample_rate=1/4` ≈1kHz, all `blackbox_disable_*`=OFF, `blackbox_high_resolution=OFF`) — already near-ideal for PID/rate tuning, no changes made.
+- **Compared current config against UAV Tech (Mark Spatz) "Cinewhoop" preset** (`spatzengr/firmware-presets`, 4.5/tune/uav_tech/UAV_tech_Cinewhoop.txt — the preset matching this craft's class: ducted-prop cinewhoop, 4S/6S; the similarly-named "Cinelog" preset is for a different 250-300g HD-cam class and does NOT apply here). Applied the two lowest-risk, directly-relevant deltas to both profile 0 and profile 1:
+  - `vbat_sag_compensation = 100` (was default 0) — compensates PID output for battery sag under load; helps the heavier "big 4S" pack.
+  - `anti_gravity_gain = 90` (was default 80) — smooths throttle-induced PID transients.
+  - Remaining preset deltas intentionally **deferred** to a post-first-flight reassessment once blackbox data is available (see Pending/TODO): `pidsum_limit`/`pidsum_limit_yaw` 500/400→1000/1000, `yaw_lowpass_hz` 0→125, `iterm_relax_cutoff` 15→5, `rpm_filter_harmonics` 3→2 (global), and a larger simplified-tuning gain rebalance toward the preset's `simplified_master_multiplier=160` / `simplified_d_gain=140` / `simplified_pi_gain=100` / `simplified_feedforward_gain=100` / `simplified_i_gain=100` (vs current profile0: master multiplier default 100, d=120, pi=110, ff=85, i=120) — this last one is a wholesale tune-philosophy shift and should be approached incrementally, not in one jump.
+
 ## Known gotchas
 
 - **`auto_profile_cell_count = -1` = "excluded from auto-switching"** (CLI allowed range -1 to 8). Profiles 2 and 3 are set to `-1` so they can never become a STAY-trap or be mistaken for a real tune. If more PID profiles are ever added/used, give any "manual only" / bench profiles `auto_profile_cell_count = -1` rather than leaving them at the default `0` (STAY).
@@ -79,10 +88,17 @@ Mechanism: `adjrange 0 0 0 900 2100 12 3 0 0` — RATE_PROFILE adjustment (funct
 
 ## Pending / TODO
 
-- Test flight + blackbox review (2026-06-16) — feedback on 4S/6S PID profiles and Cine/Acro rate feel via AUX4 (now low=Cine, high=Acro)
+- Test flight + blackbox review (2026-06-16) — feedback on 4S/6S PID profiles and Cine/Acro rate feel via AUX4 (now low=Cine, high=Acro). Indoor hover test already passed; outdoor/real flight pending.
+- **Post-first-flight reassessment** (based on actual blackbox data from 2026-06-16 flight), informed by the UAV Tech Cinewhoop preset comparison:
+  - `pidsum_limit` / `pidsum_limit_yaw`: 500/400 → 1000/1000 (more PID headroom before saturation — relevant to the heavier "big 4S" pack)
+  - `yaw_lowpass_hz`: 0 → 125 (only if blackbox shows yaw-axis noise/resonance, common on ducted cinewhoops — don't add preemptively)
+  - `iterm_relax_cutoff`: 15 → 5 (feel change — how quickly I-term "lets go" on stick release; affects cinematic smoothness)
+  - `rpm_filter_harmonics`: 3 → 2 (global, minor — slightly less filter-induced delay now RPM filter is confirmed working)
+  - Larger simplified-tuning gain rebalance toward preset values (`simplified_master_multiplier=160`, `simplified_d_gain=140`, `simplified_pi_gain=100`, `simplified_feedforward_gain=100`, `simplified_i_gain=100`) — approach incrementally based on blackbox, not as one big jump
+  - Also revisit the ~71% AUW difference between "big 4S" (937g) and "usual 6S" (547g) configs — current profile1 (+10% PIDs) was voltage-derived, not mass-derived
 - Firmware update to latest stable (2026.06) — deferred. Plan: full chip erase + flash latest + restore config from the snapshot below + recalibrate accelerometer. Consider GPS-based Position/Altitude Hold (new in 2026.06) given the craft has GPS.
 
-## Full config snapshot (`diff all`, post-change, 2026-06-15)
+## Full config snapshot (`diff all`, post-change, 2026-06-16)
 
 ```
 # version
@@ -249,6 +265,8 @@ set dterm_lpf1_dyn_min_hz = 71
 set dterm_lpf1_dyn_max_hz = 142
 set dterm_lpf1_static_hz = 71
 set dterm_lpf2_static_hz = 142
+set vbat_sag_compensation = 100
+set anti_gravity_gain = 90
 set p_pitch = 51
 set i_pitch = 110
 set d_pitch = 40
@@ -282,6 +300,8 @@ set dterm_lpf1_dyn_min_hz = 71
 set dterm_lpf1_dyn_max_hz = 142
 set dterm_lpf1_static_hz = 71
 set dterm_lpf2_static_hz = 142
+set vbat_sag_compensation = 100
+set anti_gravity_gain = 90
 set p_pitch = 56
 set i_pitch = 121
 set d_pitch = 44
