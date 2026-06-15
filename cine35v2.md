@@ -59,6 +59,7 @@ Mechanism: `adjrange 0 0 0 900 2100 12 3 0 0` — RATE_PROFILE adjustment (funct
 - Switched `motor_pwm_protocol` to DSHOT600 (not yet bench-tested).
 - Wired Acro/Cine rate switching to AUX4 (channel 8, 2-position switch) via `adjrange 0 0 0 900 2100 12 3 0 0`. (A competing adjustment briefly added via Configurator GUI on AUX3 was reverted — AUX3's high range is already Beeper, and its enable-range was a dead zone.)
 - **Fixed PID profile auto-switching (was completely inactive)**: after the session's earlier CLI work, the *active* PID profile had ended up as profile 2 (empty bench-fallback profile, `auto_profile_cell_count=0`). In Betaflight, `auto_profile_cell_count=0` means "STAY — never auto-switch away from this profile", so the cell-count check was silently exiting every time regardless of battery (confirmed stuck on GUI "Profile 3" with 6S, 4S, and USB all tried). Fix: with a 4S pack connected, ran `profile 1` (the "4S" profile, `auto_profile_cell_count=4`) + `save`. Verified via CLI: `profile` now returns `1` and `status` shows "4S battery - OK". Since profile 0 (count=6) and profile 1 (count=4) both now have valid non-zero counts, future 6S/4S connections will always find an exact match and switch correctly — self-sustaining, no further action needed for normal 4S/6S use.
+- **Confirmed working both directions** (Configurator GUI is 1-indexed): 6S battery → GUI "Profile 1" (= CLI profile0 = "6S" tune); 4S battery → GUI "Profile 2" (= CLI profile1 = "4S" tune). PID auto-switching fully verified.
 
 ## Known gotchas
 
