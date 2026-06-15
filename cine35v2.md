@@ -39,7 +39,7 @@ Mechanism: `adjrange 0 0 0 900 2100 12 3 0 0` — RATE_PROFILE adjustment (funct
 | Channel | Function |
 |---|---|
 | AUX1 (ch5) | ARM (1750-2100) |
-| AUX2 (ch6) | Flight mode — ANGLE (900-1625) + PREARM (1300-2100), likely 3-position |
+| AUX2 (ch6) | Flight mode, 3-position: low=Angle, mid=Angle+Air Mode, high=Air Mode (mode1=ANGLE @900-1625, mode28=AIR MODE @1300-2100) |
 | AUX3 (ch7) | Beeper (BOXBEEPERON, 1700-2100) |
 | AUX4 (ch8) | Acro/Cine rate profile switch, 2-position (see above) |
 
